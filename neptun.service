@@ -3,10 +3,10 @@ Description=Neptun Bot
 After=syslog.target
 
 [Service]
-Type=notify
+Type=simple
+Restart=always
 WorkingDirectory=/bots/neptun/
 ExecStart=/bots/neptun/target/debug/neptun
-Restart=always
 KillSignal=SIGQUIT
 StandardError=syslog
 NotifyAccess=all
