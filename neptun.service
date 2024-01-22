@@ -4,7 +4,8 @@ After=syslog.target
 
 [Service]
 Type=notify
-ExecStart=/bots/neptun/target/debun/neptun
+WorkingDirectory=/bots/neptun/
+ExecStart=/bots/neptun/target/debub/neptun
 Restart=always
 KillSignal=SIGQUIT
 StandardError=syslog
