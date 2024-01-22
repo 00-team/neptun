@@ -31,7 +31,7 @@ fi
 cargo build
 
 systemctl restart neptun
-cat $(systemctl status neptun)
+systemctl status neptun
 
 echo "Deploy is Done! ✅"
 
