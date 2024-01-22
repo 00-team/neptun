@@ -9,8 +9,9 @@ async fn main() {
 
     let bot = Bot::from_env();
 
+
     teloxide::repl(bot, |bot: Bot, msg: Message| async move {
-        bot.send_message(msg.chat.id, "hello from neptun").await?;
+        bot.send_message(msg.chat.id, "hello from neptun! 🌩").await?;
         Ok(())
     })
     .await;
