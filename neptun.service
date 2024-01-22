@@ -1,0 +1,14 @@
+[Unit]
+Description=Neptun Bot
+After=syslog.target
+
+[Service]
+Type=notify
+ExecStart=/bots/neptun/target/debun/neptun
+Restart=always
+KillSignal=SIGQUIT
+StandardError=syslog
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
