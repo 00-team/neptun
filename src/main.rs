@@ -111,7 +111,7 @@ async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerRe
     log::info!("users message: {:#?}", msg);
 
     bot.send_message(msg.chat.id, "hi this is the start!").await?;
-    dialogue.update(AddRecordState::Add).await?;
+    // dialogue.update(AddRecordState::Add).await?;
 
     Ok(())
 }
