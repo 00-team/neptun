@@ -120,8 +120,8 @@ async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerRe
         Err(e) => {
             log::error!("error: {:?}", e);
         }
-        Ok(new_msg) => {
-            log::info!("new_msg: {:?}", new_msg);
+        Ok(m) => {
+            log::info!("new_msg: {:#?}", m);
         }
     }
 
