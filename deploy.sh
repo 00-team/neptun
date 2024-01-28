@@ -29,10 +29,30 @@ if check_diff "neptun.service"; then
     echo $SPACER
 fi
 
-cargo build
+if [ ! -f /db/main.db ]; then
+    echo "$EG setup the database"
+    cargo sqlx database setup
+    echo $SPACER
+fi
 
+if check_diff "migrations/*"; then
+    echo "$EG update the database"
+    cargo sqlx database setup
+    echo $SPACER
+fi
+
+echo "$EG cargo build"
+cargo build
+echo $SPACER
+
+
+echo "$EG restart neptun"
 systemctl restart neptun
+echo $SPACER
+
+echo "$EG status neptun"
 systemctl status neptun
+echo $SPACER
 
 echo "Deploy is Done! ✅"
 
