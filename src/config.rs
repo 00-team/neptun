@@ -1,7 +1,6 @@
-use std::{sync::OnceLock, env};
+use std::{env, sync::OnceLock};
 
 use teloxide::types::UserId;
-
 
 #[derive(Debug)]
 pub struct Config {
@@ -20,7 +19,8 @@ pub fn config() -> &'static Config {
         );
 
         let mut admins: Vec<UserId> =
-            serde_json::from_str(&env::var("TELOXIDE_ADMINS").unwrap()).unwrap();
+            serde_json::from_str(&env::var("TELOXIDE_ADMINS").unwrap())
+                .unwrap();
         admins.push(dev);
 
         Config { dev, admins }

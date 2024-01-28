@@ -1,30 +1,22 @@
+use sqlx::SqlitePool;
+use std::env;
 use std::error::Error;
 use std::sync::Arc;
+use teloxide::dispatching::dialogue;
 use teloxide::dispatching::dialogue::serializer::Json;
+use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage, Storage};
 use teloxide::dispatching::{HandlerExt, UpdateFilterExt};
 use teloxide::prelude::*;
 
-// use rand::distributions::Alphanumeric;
-// use rand::{thread_rng, Rng};
-use sqlx::SqlitePool;
-// use std::convert::From;
-use std::env;
-// use std::string::String;
-// use std::time::{SystemTime, UNIX_EPOCH};
-
 mod config;
 mod models;
-// use models::Record;
 use config::config;
 
-use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage, Storage};
-
-type AddRecordDialogue = Dialogue<AddRecordState, ErasedStorage<AddRecordState>>;
+type Dialogue = dialogue::Dialogue<State, ErasedStorage<State>>;
 type HandlerResult = Result<(), Box<dyn Error + Send + Sync>>;
-type ARStorage = Arc<ErasedStorage<AddRecordState>>;
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
-pub enum AddRecordState {
+pub enum State {
     #[default]
     Start,
     Add,
@@ -43,15 +35,16 @@ async fn main() -> anyhow::Result<()> {
 
     bot.send_message(config().dev, "Starting 🐧").await?;
 
-    let storage: ARStorage = SqliteStorage::open(&env::var("TELOXIDE_STORAGE")?, Json)
-        .await?
-        .erase();
+    let storage: Arc<ErasedStorage<State>> =
+        SqliteStorage::open(&env::var("TELOXIDE_STORAGE")?, Json)
+            .await?
+            .erase();
 
     let handler = Update::filter_message()
-        .enter_dialogue::<Message, ErasedStorage<AddRecordState>, AddRecordState>()
-        .branch(dptree::case![AddRecordState::Start].endpoint(start))
-        .branch(dptree::case![AddRecordState::Add].endpoint(add))
-        .branch(dptree::case![AddRecordState::End].endpoint(end));
+        .enter_dialogue::<Message, ErasedStorage<State>, State>()
+        .branch(dptree::case![State::Start].endpoint(start))
+        .branch(dptree::case![State::Add].endpoint(add))
+        .branch(dptree::case![State::End].endpoint(end));
 
     Dispatcher::builder(bot, handler)
         .dependencies(dptree::deps![storage])
@@ -111,7 +104,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
+async fn start(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
     log::info!("config: {:#?}", config());
     log::info!("users message: {:#?}", msg);
 
@@ -122,13 +115,13 @@ async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerRe
     Ok(())
 }
 
-async fn add(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
+async fn add(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, "hi this is the add!").await?;
-    dialogue.update(AddRecordState::End).await?;
+    dialogue.update(State::End).await?;
     Ok(())
 }
 
-async fn end(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
+async fn end(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, "hi this is the end!").await?;
     dialogue.reset().await?;
     Ok(())

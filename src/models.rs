@@ -6,7 +6,9 @@ use sqlx::{Encode, Type};
 use std::borrow::Cow;
 use std::vec::Vec;
 
-#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(
+    Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize, sqlx::FromRow,
+)]
 pub struct Messages {
     pub ids: Vec<i64>,
 }
@@ -55,7 +57,8 @@ impl Type<Sqlite> for Messages {
 
 impl From<String> for Messages {
     fn from(value: String) -> Self {
-        let result: Self = serde_json::from_str(&value).unwrap_or(Self::default());
+        let result: Self =
+            serde_json::from_str(&value).unwrap_or(Self::default());
         result
     }
 }
