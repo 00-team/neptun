@@ -109,19 +109,19 @@ async fn main() -> anyhow::Result<()> {
 
 async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
     if let Some(text) = msg.text() {
-        println!("message text: {}", text);
+        log::info!("message text: {}", text);
     } else {
-        println!("no text");
+        log::info!("no text");
     }
 
     let result = bot.send_message(msg.chat.id, "hi this is the start!").await;
 
     match result {
         Err(e) => {
-            println!("error: {:?}", e);
+            log::error!("error: {:?}", e);
         }
         Ok(new_msg) => {
-            println!("new_msg: {:?}", new_msg);
+            log::info!("new_msg: {:?}", new_msg);
         }
     }
 
@@ -137,7 +137,7 @@ async fn add(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResu
 }
 
 async fn end(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "hi this is the add!").await?;
+    bot.send_message(msg.chat.id, "hi this is the end!").await?;
     dialogue.reset().await?;
     Ok(())
 }
