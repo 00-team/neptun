@@ -47,13 +47,13 @@ cargo build
 echo $SPACER
 
 
-echo "$EG restart neptun"
-systemctl restart neptun
-echo $SPACER
+# echo "$EG restart neptun"
+# systemctl restart neptun
+# echo $SPACER
 
-echo "$EG status neptun"
-systemctl status neptun
-echo $SPACER
+# echo "$EG status neptun"
+# systemctl status neptun
+# echo $SPACER
 
 echo "Deploy is Done! ✅"
 
