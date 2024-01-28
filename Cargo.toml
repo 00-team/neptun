@@ -25,5 +25,5 @@ sqlx-cli = { version = "0.7", features = ["sqlite", "completions"] }
 [dependencies.teloxide]
 git = "https://github.com/teloxide/teloxide.git"
 version = "0"
-features = ["macros", "sqlite-storage-nativetls"]
+features = ["full"]
 branch = "master"

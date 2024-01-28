@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::sync::Arc;
 use teloxide::dispatching::dialogue::serializer::Json;
 use teloxide::dispatching::{HandlerExt, UpdateFilterExt};
 use teloxide::prelude::*;
@@ -14,10 +15,11 @@ use std::env;
 mod models;
 // use models::Record;
 
-use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage};
+use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage, Storage};
 
 type AddRecordDialogue = Dialogue<AddRecordState, ErasedStorage<AddRecordState>>;
 type HandlerResult = Result<(), Box<dyn Error + Send + Sync>>;
+type ARStorage = Arc<ErasedStorage<AddRecordState>>;
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub enum AddRecordState {
@@ -36,7 +38,9 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!().run(&pool).await?;
 
     let bot = Bot::from_env();
-    let storage = SqliteStorage::open(&env::var("TELOXIDE_STORAGE")?, Json).await?;
+    let storage: ARStorage = SqliteStorage::open(&env::var("TELOXIDE_STORAGE")?, Json)
+        .await?
+        .erase();
 
     Dispatcher::builder(
         bot,
