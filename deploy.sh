@@ -42,9 +42,9 @@ if check_diff "migrations/*"; then
     echo $SPACER
 fi
 
-echo "$EG cargo build"
-cargo build
-echo $SPACER
+# echo "$EG cargo build"
+# cargo build
+# echo $SPACER
 
 
 # echo "$EG restart neptun"
