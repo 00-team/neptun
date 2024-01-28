@@ -113,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
 
 async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
     log::info!("config: {:#?}", config());
-    // log::info!("users message: {:#?}", msg);
+    log::info!("users message: {:#?}", msg);
 
     bot.send_message(msg.chat.id, "hi this is the start!")
         .await?;
