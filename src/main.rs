@@ -108,23 +108,9 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
-    if let Some(text) = msg.text() {
-        log::info!("message text: {}", text);
-    } else {
-        log::info!("no text");
-    }
+    log::info!("users message: {:#?}", msg);
 
-    let result = bot.send_message(msg.chat.id, "hi this is the start!").await;
-
-    match result {
-        Err(e) => {
-            log::error!("error: {:?}", e);
-        }
-        Ok(m) => {
-            log::info!("new_msg: {:#?}", m);
-        }
-    }
-
+    bot.send_message(msg.chat.id, "hi this is the start!").await?;
     dialogue.update(AddRecordState::Add).await?;
 
     Ok(())
