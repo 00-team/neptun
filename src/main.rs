@@ -14,7 +14,7 @@ use std::env;
 mod models;
 // use models::Record;
 
-use teloxide::dispatching::dialogue::{SqliteStorage, ErasedStorage};
+use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage};
 
 type AddRecordDialogue = Dialogue<AddRecordState, ErasedStorage<AddRecordState>>;
 type HandlerResult = Result<(), Box<dyn Error + Send + Sync>>;
@@ -42,8 +42,9 @@ async fn main() -> anyhow::Result<()> {
         bot,
         Update::filter_message()
             .enter_dialogue::<Message, ErasedStorage<AddRecordState>, AddRecordState>()
-            .branch(dptree::case![AddRecordState::Start].endpoint(start)), // .branch(dptree::case![AddRecordState::Add].endpoint(add))
-                                                                           // .branch(dptree::case![AddRecordState::End].endpoint(end)),
+            .branch(dptree::case![AddRecordState::Start].endpoint(start))
+            .branch(dptree::case![AddRecordState::Add].endpoint(add))
+            .branch(dptree::case![AddRecordState::End].endpoint(end)),
     )
     .dependencies(dptree::deps![storage])
     .build()
@@ -107,5 +108,17 @@ async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerRe
         .await?;
     dialogue.update(AddRecordState::Add).await?;
 
+    Ok(())
+}
+
+async fn add(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
+    bot.send_message(msg.chat.id, "hi this is the add!").await?;
+    dialogue.update(AddRecordState::End).await?;
+    Ok(())
+}
+
+async fn end(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
+    bot.send_message(msg.chat.id, "hi this is the add!").await?;
+    dialogue.reset().await?;
     Ok(())
 }
