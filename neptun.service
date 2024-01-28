@@ -6,6 +6,7 @@ After=syslog.target
 Type=simple
 Restart=always
 WorkingDirectory=/bots/neptun/
+EnvironmentFile=/bots/neptun/secrets.env
 ExecStart=/bots/neptun/target/debug/neptun
 KillSignal=SIGQUIT
 StandardError=syslog

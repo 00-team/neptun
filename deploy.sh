@@ -3,6 +3,7 @@ SPACER="======================================"
 EG="🔷"
 
 cd /bots/neptun/
+export $(cat secrets.env | xargs)
 
 OLD_COMMIT=$(git rev-parse HEAD)
 
