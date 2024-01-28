@@ -12,8 +12,10 @@ use std::env;
 // use std::string::String;
 // use std::time::{SystemTime, UNIX_EPOCH};
 
+mod config;
 mod models;
 // use models::Record;
+use config::config;
 
 use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage, Storage};
 
@@ -38,22 +40,24 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!().run(&pool).await?;
 
     let bot = Bot::from_env();
+
+    bot.send_message(config().dev, "Starting 🐧").await?;
+
     let storage: ARStorage = SqliteStorage::open(&env::var("TELOXIDE_STORAGE")?, Json)
         .await?
         .erase();
 
-    Dispatcher::builder(
-        bot,
-        Update::filter_message()
-            .enter_dialogue::<Message, ErasedStorage<AddRecordState>, AddRecordState>()
-            .branch(dptree::case![AddRecordState::Start].endpoint(start))
-            .branch(dptree::case![AddRecordState::Add].endpoint(add))
-            .branch(dptree::case![AddRecordState::End].endpoint(end)),
-    )
-    .dependencies(dptree::deps![storage])
-    .build()
-    .dispatch()
-    .await;
+    let handler = Update::filter_message()
+        .enter_dialogue::<Message, ErasedStorage<AddRecordState>, AddRecordState>()
+        .branch(dptree::case![AddRecordState::Start].endpoint(start))
+        .branch(dptree::case![AddRecordState::Add].endpoint(add))
+        .branch(dptree::case![AddRecordState::End].endpoint(end));
+
+    Dispatcher::builder(bot, handler)
+        .dependencies(dptree::deps![storage])
+        .build()
+        .dispatch()
+        .await;
 
     // return Ok(());
 
@@ -108,9 +112,11 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn start(bot: Bot, dialogue: AddRecordDialogue, msg: Message) -> HandlerResult {
-    log::info!("users message: {:#?}", msg);
+    log::info!("config: {:#?}", config());
+    // log::info!("users message: {:#?}", msg);
 
-    bot.send_message(msg.chat.id, "hi this is the start!").await?;
+    bot.send_message(msg.chat.id, "hi this is the start!")
+        .await?;
     // dialogue.update(AddRecordState::Add).await?;
 
     Ok(())
