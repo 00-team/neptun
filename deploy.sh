@@ -31,6 +31,7 @@ fi
 
 if [ ! -f /db/main.db ]; then
     echo "$EG setup the database"
+    mkdir -p db
     cargo sqlx database setup
     echo $SPACER
 fi
