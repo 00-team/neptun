@@ -1,7 +1,6 @@
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sqlx::SqlitePool;
-use teloxide::types::ParseMode;
 use std::env;
 use std::error::Error;
 use std::sync::Arc;
@@ -10,6 +9,7 @@ use teloxide::dispatching::dialogue::serializer::Json;
 use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage, Storage};
 use teloxide::dispatching::{HandlerExt, UpdateFilterExt};
 use teloxide::prelude::*;
+use teloxide::types::ParseMode::MarkdownV2;
 use teloxide::utils::command::BotCommands;
 
 mod config;
@@ -57,9 +57,11 @@ async fn main() -> anyhow::Result<()> {
     ));
     sqlx::migrate!().run(pool).await?;
 
-    let bot = Bot::from_env().parse_mode(ParseMode::MarkdownV2);
+    let bot = Bot::from_env();
 
-    bot.send_message(config().dev, "Starting 🐧").await?;
+    bot.send_message(config().dev, "**Starting** 🐧")
+        .parse_mode(MarkdownV2)
+        .await?;
 
     let storage: Arc<ErasedStorage<State>> =
         SqliteStorage::open(&env::var("TELOXIDE_STORAGE")?, Json)
@@ -261,7 +263,7 @@ async fn record_commands(
                     get the record like `/get_record {}`",
                     r.count, r.id, r.id
                 ),
-            )
+            ).parse_mode(MarkdownV2)
             .await?;
         }
     }
