@@ -1,6 +1,7 @@
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sqlx::SqlitePool;
+use teloxide::types::ParseMode;
 use std::env;
 use std::error::Error;
 use std::sync::Arc;
@@ -56,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     ));
     sqlx::migrate!().run(pool).await?;
 
-    let bot = Bot::from_env();
+    let bot = Bot::from_env().parse_mode(ParseMode::MarkdownV2);
 
     bot.send_message(config().dev, "Starting 🐧").await?;
 
@@ -124,7 +125,7 @@ async fn menu(bot: Bot, _dlg: Dialogue, msg: Message) -> HR {
 async fn get_record(bot: Bot, pool: &SqlitePool, id: i64, msg: Message) -> HR {
     let result = sqlx::query_as!(
         models::Record,
-        "select * from records where id = ? and done = false",
+        "select * from records where id = ? and done = true",
         id,
     )
     .fetch_one(pool)
@@ -187,7 +188,7 @@ async fn add_record(
     bot.send_message(
         msg.chat.id,
         format!(
-            "added message {} to record {}\
+            "added message {} to record {}
             use /end_record to finish",
             msg.id, id
         ),
@@ -255,8 +256,8 @@ async fn record_commands(
             bot.send_message(
                 msg.chat.id,
                 format!(
-                    "total messages: {}\
-                    id: {}\
+                    "total messages: {}
+                    id: {}
                     get the record like `/get_record {}`",
                     r.count, r.id, r.id
                 ),
