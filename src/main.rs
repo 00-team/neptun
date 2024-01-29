@@ -14,24 +14,26 @@ mod models;
 use config::config;
 
 type Dialogue = dialogue::Dialogue<State, ErasedStorage<State>>;
-type HandlerResult = Result<(), Box<dyn Error + Send + Sync>>;
+type HR = Result<(), Box<dyn Error + Send + Sync>>;
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub enum State {
     #[default]
-    Start,
-    Menu,
-    AddRecord,
-    EndRecord,
+    None,
+    AddRecord {
+        id: i64,
+    },
 }
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase")]
 pub enum Command {
-    Help,
-    /// random docs
     Start,
-    Menu,
+    Help,
+    /// make a new record
+    NewRecord,
+    /// finish sending messages for records
+    EndRecord,
 }
 
 #[tokio::main]
@@ -54,14 +56,16 @@ async fn main() -> anyhow::Result<()> {
     let handler = Update::filter_message()
         .enter_dialogue::<Message, ErasedStorage<State>, State>()
         .branch(
+            dptree::case![State::AddRecord { id }]
+                .filter_command::<Command>()
+                .endpoint(end_record),
+        )
+        .branch(
             dptree::entry()
                 .filter_command::<Command>()
                 .endpoint(handle_commands),
         )
-        .branch(dptree::case![State::Start].endpoint(start))
-        .branch(dptree::case![State::Menu].endpoint(menu))
-        .branch(dptree::case![State::AddRecord].endpoint(add_record))
-        .branch(dptree::case![State::EndRecord].endpoint(end_record));
+        .branch(dptree::case![State::AddRecord { id }].endpoint(add_record));
 
     Dispatcher::builder(bot, handler)
         .dependencies(dptree::deps![storage])
@@ -122,25 +126,22 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn handle_commands(
-    bot: Bot, dialogue: Dialogue, msg: Message, cmd: Command,
-) -> HandlerResult {
+    bot: Bot, dlg: Dialogue, msg: Message, cmd: Command,
+) -> HR {
     match cmd {
-        Command::Start => {
-            bot.send_message(msg.chat.id, "start command").await?;
-        }
-        Command::Menu => {
-            bot.send_message(msg.chat.id, "start menu ").await?;
-        }
+        Command::Start => start(bot, dlg, msg).await?,
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
                 .await?;
         }
+        Command::NewRecord => new_record(bot, dlg, msg).await?,
+        _ => (),
     }
 
     Ok(())
 }
 
-async fn start(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
+async fn start(bot: Bot, dlg: Dialogue, msg: Message) -> HR {
     bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.")
         .await?;
     // dialogue.update(AddRecordState::Add).await?;
@@ -148,24 +149,33 @@ async fn start(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
     Ok(())
 }
 
-async fn menu(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "hi this is the add!").await?;
+async fn add_record(bot: Bot, dlg: Dialogue, id: i64, msg: Message) -> HR {
+    bot.send_message(msg.chat.id, format!("adding new record to {}", id))
+        .await?;
     // dialogue.update(State::End).await?;
     Ok(())
 }
 
-async fn add_record(
-    bot: Bot, dialogue: Dialogue, msg: Message,
-) -> HandlerResult {
-    bot.send_message(msg.chat.id, "hi this is the add!").await?;
-    // dialogue.update(State::End).await?;
+async fn new_record(bot: Bot, dlg: Dialogue, msg: Message) -> HR {
+    bot.send_message(msg.chat.id, "new messages").await?;
+    dlg.update(State::AddRecord { id: 12 }).await?;
     Ok(())
 }
 
 async fn end_record(
-    bot: Bot, dialogue: Dialogue, msg: Message,
-) -> HandlerResult {
-    bot.send_message(msg.chat.id, "hi this is the end!").await?;
-    dialogue.reset().await?;
+    bot: Bot, dlg: Dialogue, id: i64, msg: Message, cmd: Command,
+) -> HR {
+    match cmd {
+        Command::EndRecord => {
+            bot.send_message(
+                msg.chat.id,
+                format!("total messages: 69, ending: {}", id),
+            )
+            .await?;
+            dlg.update(State::None).await?;
+        }
+        _ => (),
+    }
+
     Ok(())
 }
