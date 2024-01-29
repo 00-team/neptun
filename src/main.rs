@@ -1,3 +1,5 @@
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use sqlx::SqlitePool;
 use std::env;
 use std::error::Error;
@@ -46,8 +48,8 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::from_path("./secrets.env").unwrap();
     pretty_env_logger::init();
 
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
-    sqlx::migrate!().run(&pool).await?;
+    let pool: &'static SqlitePool = Box::leak(Box::new(SqlitePool::connect(&env::var("DATABASE_URL")?).await?));
+    sqlx::migrate!().run(pool).await?;
 
     let bot = Bot::from_env();
 
@@ -77,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
     Dispatcher::builder(bot, handler)
-        .dependencies(dptree::deps![storage])
+        .dependencies(dptree::deps![storage, pool])
         .build()
         .dispatch()
         .await;
@@ -91,33 +93,6 @@ async fn main() -> anyhow::Result<()> {
     // })
     // .await;
 
-    // let mut record = Record::default();
-
-    // record.created_at = SystemTime::now()
-    //     .duration_since(UNIX_EPOCH)
-    //     .unwrap()
-    //     .as_secs() as i64;
-    //
-    // record.slug = thread_rng()
-    //     .sample_iter(&Alphanumeric)
-    //     .take(16)
-    //     .map(char::from)
-    //     .collect();
-    //
-    // record.messages.ids.push(10);
-    // record.messages.ids.push(12);
-
-    // let result = sqlx::query_as!(
-    //     Record,
-    //     "insert into records (slug, created_at, messages) values(?, ?, ?)",
-    //     record.slug,
-    //     record.created_at,
-    //     record.messages
-    // )
-    // .execute(&pool)
-    // .await?;
-    //
-    // record.id = result.last_insert_rowid();
     //
     // println!("{:?}", record);
 
@@ -135,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn handle_commands(
-    bot: Bot, dlg: Dialogue, msg: Message, cmd: Command,
+    bot: Bot, dlg: Dialogue, pool: &SqlitePool, msg: Message, cmd: Command,
 ) -> HR {
     match cmd {
         Command::Start => {
@@ -146,7 +121,7 @@ async fn handle_commands(
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
                 .await?;
         }
-        Command::NewRecord => new_record(bot, dlg, msg).await?,
+        Command::NewRecord => new_record(bot, dlg, pool, msg).await?,
     }
 
     Ok(())
@@ -172,9 +147,39 @@ async fn add_record(bot: Bot, id: i64, msg: Message) -> HR {
     Ok(())
 }
 
-async fn new_record(bot: Bot, dlg: Dialogue, msg: Message) -> HR {
-    bot.send_message(msg.chat.id, "new messages").await?;
-    dlg.update(State::AddRecord { id: 12 }).await?;
+async fn new_record(
+    bot: Bot, dlg: Dialogue, pool: &SqlitePool, msg: Message,
+) -> HR {
+    let record = models::Record {
+        created_at: chrono::Local::now().timestamp(),
+        slug: thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(16)
+            .map(char::from)
+            .collect(),
+        ..Default::default()
+    };
+
+    let result = sqlx::query_as!(
+        Record,
+        "insert into records (slug, created_at, messages) values(?, ?, ?)",
+        record.slug,
+        record.created_at,
+        record.messages
+    )
+    .execute(pool)
+    .await?;
+
+    let id = result.last_insert_rowid();
+
+    bot.send_message(
+        msg.chat.id,
+        format!("send your messages\nyour record id is: {}", id),
+    )
+    .await?;
+
+    dlg.update(State::AddRecord { id }).await?;
+
     Ok(())
 }
 
