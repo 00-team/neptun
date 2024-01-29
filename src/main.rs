@@ -7,6 +7,7 @@ use teloxide::dispatching::dialogue::serializer::Json;
 use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage, Storage};
 use teloxide::dispatching::{HandlerExt, UpdateFilterExt};
 use teloxide::prelude::*;
+use teloxide::utils::command::BotCommands;
 
 mod config;
 mod models;
@@ -19,8 +20,18 @@ type HandlerResult = Result<(), Box<dyn Error + Send + Sync>>;
 pub enum State {
     #[default]
     Start,
-    Add,
-    End,
+    Menu,
+    AddRecord,
+    EndRecord,
+}
+
+#[derive(BotCommands, Clone)]
+#[command(rename_rule = "lowercase")]
+pub enum Command {
+    Help,
+    /// random docs
+    Start,
+    Menu,
 }
 
 #[tokio::main]
@@ -42,9 +53,15 @@ async fn main() -> anyhow::Result<()> {
 
     let handler = Update::filter_message()
         .enter_dialogue::<Message, ErasedStorage<State>, State>()
+        .branch(
+            dptree::entry()
+                .filter_command::<Command>()
+                .endpoint(handle_commands),
+        )
         .branch(dptree::case![State::Start].endpoint(start))
-        .branch(dptree::case![State::Add].endpoint(add))
-        .branch(dptree::case![State::End].endpoint(end));
+        .branch(dptree::case![State::Menu].endpoint(menu))
+        .branch(dptree::case![State::AddRecord].endpoint(add_record))
+        .branch(dptree::case![State::EndRecord].endpoint(end_record));
 
     Dispatcher::builder(bot, handler)
         .dependencies(dptree::deps![storage])
@@ -104,24 +121,50 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn start(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
-    log::info!("config: {:#?}", config());
-    log::info!("users message: {:#?}", msg);
+async fn handle_commands(
+    bot: Bot, dialogue: Dialogue, msg: Message, cmd: Command,
+) -> HandlerResult {
+    match cmd {
+        Command::Start => {
+            bot.send_message(msg.chat.id, "start command").await?;
+        }
+        Command::Menu => {
+            bot.send_message(msg.chat.id, "start menu ").await?;
+        }
+        Command::Help => {
+            bot.send_message(msg.chat.id, Command::descriptions().to_string())
+                .await?;
+        }
+    }
 
-    bot.send_message(msg.chat.id, "hi this is the start!")
+    Ok(())
+}
+
+async fn start(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
+    bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.")
         .await?;
     // dialogue.update(AddRecordState::Add).await?;
 
     Ok(())
 }
 
-async fn add(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
+async fn menu(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, "hi this is the add!").await?;
-    dialogue.update(State::End).await?;
+    // dialogue.update(State::End).await?;
     Ok(())
 }
 
-async fn end(bot: Bot, dialogue: Dialogue, msg: Message) -> HandlerResult {
+async fn add_record(
+    bot: Bot, dialogue: Dialogue, msg: Message,
+) -> HandlerResult {
+    bot.send_message(msg.chat.id, "hi this is the add!").await?;
+    // dialogue.update(State::End).await?;
+    Ok(())
+}
+
+async fn end_record(
+    bot: Bot, dialogue: Dialogue, msg: Message,
+) -> HandlerResult {
     bot.send_message(msg.chat.id, "hi this is the end!").await?;
     dialogue.reset().await?;
     Ok(())
