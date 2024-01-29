@@ -3,17 +3,20 @@ use sqlx::encode::IsNull;
 use sqlx::sqlite::{SqliteArgumentValue, SqliteTypeInfo};
 use sqlx::Sqlite;
 use sqlx::{Encode, Type};
+use teloxide::types::{ChatId, MessageId};
 use std::borrow::Cow;
 use std::vec::Vec;
 
 #[derive(
-    Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize, sqlx::FromRow,
+    Clone, PartialEq, Eq, Debug, Serialize, Deserialize, sqlx::FromRow,
 )]
 pub struct Messages {
-    pub ids: Vec<i64>,
+    pub cid: ChatId,
+    pub ids: Vec<MessageId>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, sqlx::FromRow)]
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Record {
     pub id: i64,
     pub slug: String,
@@ -57,8 +60,7 @@ impl Type<Sqlite> for Messages {
 
 impl From<String> for Messages {
     fn from(value: String) -> Self {
-        let result: Self =
-            serde_json::from_str(&value).unwrap_or(Self::default());
+        let result: Self = serde_json::from_str(&value).unwrap();
         result
     }
 }

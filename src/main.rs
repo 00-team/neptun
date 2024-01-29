@@ -34,6 +34,9 @@ pub enum Command {
     Help,
     /// make a new record
     NewRecord,
+    GetRecord {
+        id: i64,
+    },
 }
 
 #[derive(BotCommands, Clone)]
@@ -48,7 +51,9 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::from_path("./secrets.env").unwrap();
     pretty_env_logger::init();
 
-    let pool: &'static SqlitePool = Box::leak(Box::new(SqlitePool::connect(&env::var("DATABASE_URL")?).await?));
+    let pool: &'static SqlitePool = Box::leak(Box::new(
+        SqlitePool::connect(&env::var("DATABASE_URL")?).await?,
+    ));
     sqlx::migrate!().run(pool).await?;
 
     let bot = Bot::from_env();
@@ -84,28 +89,6 @@ async fn main() -> anyhow::Result<()> {
         .dispatch()
         .await;
 
-    // return Ok(());
-
-    // teloxide::repl(bot, |bot: Bot, msg: Message| async move {
-    //     bot.send_message(msg.chat.id, "hello from neptun! 🌩")
-    //         .await?;
-    //     Ok(())
-    // })
-    // .await;
-
-    //
-    // println!("{:?}", record);
-
-    // if let Err(e) = user.insert(&pool).await {
-    //     println!("{:?}", e);
-    // }
-
-    // let new_record = sqlx::query_as!(Record, "select * from records where id = $1", 1)
-    //     .fetch_one(&pool)
-    //     .await?;
-    //
-    // println!("{:?}", new_record);
-
     Ok(())
 }
 
@@ -114,14 +97,14 @@ async fn handle_commands(
 ) -> HR {
     match cmd {
         Command::Start => {
-            bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.")
-                .await?;
+            bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.").await?;
         }
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
                 .await?;
         }
         Command::NewRecord => new_record(bot, dlg, pool, msg).await?,
+        Command::GetRecord { id } => get_record(bot, pool, id, msg).await?,
     }
 
     Ok(())
@@ -138,10 +121,76 @@ async fn menu(bot: Bot, _dlg: Dialogue, msg: Message) -> HR {
     Ok(())
 }
 
-async fn add_record(bot: Bot, id: i64, msg: Message) -> HR {
+async fn get_record(bot: Bot, pool: &SqlitePool, id: i64, msg: Message) -> HR {
+    let result = sqlx::query_as!(
+        models::Record,
+        "select * from records where id = ? and done = false",
+        id,
+    )
+    .fetch_one(pool)
+    .await;
+
+    match result {
+        Err(_) => {
+            bot.send_message(
+                msg.chat.id,
+                format!("<Record {} /> was not found!", id),
+            )
+            .await?;
+        }
+        Ok(r) => {
+            for mid in r.messages.ids {
+                bot.forward_message(msg.chat.id, r.messages.cid, mid).await?;
+            }
+
+            bot.send_message(
+                msg.chat.id,
+                format!("total messages: {}", r.count),
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn add_record(
+    bot: Bot, pool: &SqlitePool, dlg: Dialogue, id: i64, msg: Message,
+) -> HR {
+    let result = sqlx::query_as!(
+        models::Record,
+        "select * from records where id = ? and done = false",
+        id,
+    )
+    .fetch_one(pool)
+    .await;
+
+    match result {
+        Err(_) => dlg.update(State::Menu).await?,
+        Ok(mut r) => {
+            r.messages.ids.push(msg.id);
+            r.count += 1;
+
+            sqlx::query_as!(
+                models::Record,
+                "update records set messages = ?, count = ?
+                where id = ? and done = false",
+                r.messages,
+                r.count,
+                id
+            )
+            .execute(pool)
+            .await?;
+        }
+    }
+
     bot.send_message(
         msg.chat.id,
-        format!("adding new record to {}\nuse /end_record for finishing", id),
+        format!(
+            "added message {} to record {}\
+            use /end_record to finish",
+            msg.id, id
+        ),
     )
     .await?;
     Ok(())
@@ -157,7 +206,10 @@ async fn new_record(
             .take(16)
             .map(char::from)
             .collect(),
-        ..Default::default()
+        id: 0,
+        count: 0,
+        done: false,
+        messages: models::Messages { cid: msg.chat.id, ids: Vec::new() },
     };
 
     let result = sqlx::query_as!(
@@ -184,12 +236,41 @@ async fn new_record(
 }
 
 async fn record_commands(
-    bot: Bot, dlg: Dialogue, id: i64, msg: Message, _cmd: RecordCommand,
+    bot: Bot, dlg: Dialogue, pool: &SqlitePool, id: i64, msg: Message,
+    _cmd: RecordCommand,
 ) -> HR {
-    bot.send_message(
-        msg.chat.id,
-        format!("total messages: 69, ending: {}", id),
+    let result = sqlx::query_as!(
+        models::Record,
+        "select * from records where id = ? and done = false",
+        id,
     )
+    .fetch_one(pool)
+    .await;
+
+    match result {
+        Err(_) => {
+            bot.send_message(msg.chat.id, "record was not found!").await?;
+        }
+        Ok(r) => {
+            bot.send_message(
+                msg.chat.id,
+                format!(
+                    "total messages: {}\
+                    id: {}\
+                    get the record like `/get_record {}`",
+                    r.count, r.id, r.id
+                ),
+            )
+            .await?;
+        }
+    }
+
+    sqlx::query_as!(
+        models::Record,
+        "update records set done = true where id = ? and done = false",
+        id
+    )
+    .execute(pool)
     .await?;
 
     dlg.update(State::Menu).await?;
