@@ -19,19 +19,24 @@ type HR = Result<(), Box<dyn Error + Send + Sync>>;
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub enum State {
     #[default]
-    None,
+    Menu,
     AddRecord {
         id: i64,
     },
 }
 
 #[derive(BotCommands, Clone)]
-#[command(rename_rule = "lowercase")]
+#[command(rename_rule = "snake_case")]
 pub enum Command {
     Start,
     Help,
     /// make a new record
     NewRecord,
+}
+
+#[derive(BotCommands, Clone)]
+#[command(rename_rule = "snake_case")]
+pub enum RecordCommand {
     /// finish sending messages for records
     EndRecord,
 }
@@ -56,16 +61,20 @@ async fn main() -> anyhow::Result<()> {
     let handler = Update::filter_message()
         .enter_dialogue::<Message, ErasedStorage<State>, State>()
         .branch(
-            dptree::case![State::AddRecord { id }]
-                .filter_command::<Command>()
-                .endpoint(end_record),
-        )
-        .branch(
             dptree::entry()
                 .filter_command::<Command>()
                 .endpoint(handle_commands),
         )
-        .branch(dptree::case![State::AddRecord { id }].endpoint(add_record));
+        .branch(dptree::case![State::Menu].endpoint(menu))
+        .branch(
+            dptree::case![State::AddRecord { id }]
+                .branch(
+                    dptree::entry()
+                        .filter_command::<RecordCommand>()
+                        .endpoint(record_commands),
+                )
+                .endpoint(add_record),
+        );
 
     Dispatcher::builder(bot, handler)
         .dependencies(dptree::deps![storage])
@@ -129,30 +138,37 @@ async fn handle_commands(
     bot: Bot, dlg: Dialogue, msg: Message, cmd: Command,
 ) -> HR {
     match cmd {
-        Command::Start => start(bot, dlg, msg).await?,
+        Command::Start => {
+            bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.")
+                .await?;
+        }
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
                 .await?;
         }
         Command::NewRecord => new_record(bot, dlg, msg).await?,
-        _ => (),
     }
 
     Ok(())
 }
 
-async fn start(bot: Bot, dlg: Dialogue, msg: Message) -> HR {
-    bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.")
-        .await?;
+async fn menu(bot: Bot, _dlg: Dialogue, msg: Message) -> HR {
+    bot.send_message(
+        msg.chat.id,
+        "hi this is the menu of the bot\n/new_record.",
+    )
+    .await?;
     // dialogue.update(AddRecordState::Add).await?;
 
     Ok(())
 }
 
-async fn add_record(bot: Bot, dlg: Dialogue, id: i64, msg: Message) -> HR {
-    bot.send_message(msg.chat.id, format!("adding new record to {}", id))
-        .await?;
-    // dialogue.update(State::End).await?;
+async fn add_record(bot: Bot, id: i64, msg: Message) -> HR {
+    bot.send_message(
+        msg.chat.id,
+        format!("adding new record to {}\nuse /end_record for finishing", id),
+    )
+    .await?;
     Ok(())
 }
 
@@ -162,20 +178,16 @@ async fn new_record(bot: Bot, dlg: Dialogue, msg: Message) -> HR {
     Ok(())
 }
 
-async fn end_record(
-    bot: Bot, dlg: Dialogue, id: i64, msg: Message, cmd: Command,
+async fn record_commands(
+    bot: Bot, dlg: Dialogue, id: i64, msg: Message, _cmd: RecordCommand,
 ) -> HR {
-    match cmd {
-        Command::EndRecord => {
-            bot.send_message(
-                msg.chat.id,
-                format!("total messages: 69, ending: {}", id),
-            )
-            .await?;
-            dlg.update(State::None).await?;
-        }
-        _ => (),
-    }
+    bot.send_message(
+        msg.chat.id,
+        format!("total messages: 69, ending: {}", id),
+    )
+    .await?;
+
+    dlg.update(State::Menu).await?;
 
     Ok(())
 }
