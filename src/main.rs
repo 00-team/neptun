@@ -1,4 +1,4 @@
-use indoc::formatdoc;
+use indoc::{formatdoc, indoc};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sqlx::SqlitePool;
@@ -60,9 +60,7 @@ async fn main() -> anyhow::Result<()> {
 
     let bot = Bot::from_env();
 
-    bot.send_message(config().dev, "**Starting** 🐧")
-        .parse_mode(MarkdownV2)
-        .await?;
+    bot.send_message(config().dev, "Starting 🐧").await?;
 
     let storage: Arc<ErasedStorage<State>> =
         SqliteStorage::open(&env::var("TELOXIDE_STORAGE")?, Json)
@@ -117,7 +115,10 @@ async fn handle_commands(
 async fn menu(bot: Bot, _dlg: Dialogue, msg: Message) -> HR {
     bot.send_message(
         msg.chat.id,
-        "hi this is the menu of the bot\n/new_record.",
+        indoc! {"
+            hi this is the menu of the bot
+            /new_record
+        "},
     )
     .await?;
     // dialogue.update(AddRecordState::Add).await?;
@@ -126,11 +127,10 @@ async fn menu(bot: Bot, _dlg: Dialogue, msg: Message) -> HR {
 }
 
 async fn get_record(bot: Bot, pool: &SqlitePool, id: i64, msg: Message) -> HR {
-    let result = sqlx::query_as!(
+    let result = sqlx::query_as! {
         models::Record,
-        "select * from records where id = ? and done = true",
-        id,
-    )
+        "select * from records where id = ? and done = true", id,
+    }
     .fetch_one(pool)
     .await;
 
@@ -144,7 +144,10 @@ async fn get_record(bot: Bot, pool: &SqlitePool, id: i64, msg: Message) -> HR {
         }
         Ok(r) => {
             for mid in r.messages.ids {
-                bot.forward_message(msg.chat.id, r.messages.cid, mid).await?;
+                let mut x = bot.copy_message(msg.chat.id, r.messages.cid, mid);
+                x.caption = Some("new caption".to_owned());
+                x.send().await?;
+                // bot.forward_message(msg.chat.id, r.messages.cid, mid).await?;
             }
 
             bot.send_message(
@@ -161,11 +164,10 @@ async fn get_record(bot: Bot, pool: &SqlitePool, id: i64, msg: Message) -> HR {
 async fn add_record(
     bot: Bot, pool: &SqlitePool, dlg: Dialogue, id: i64, msg: Message,
 ) -> HR {
-    let result = sqlx::query_as!(
+    let result = sqlx::query_as! {
         models::Record,
-        "select * from records where id = ? and done = false",
-        id,
-    )
+        "select * from records where id = ? and done = false", id,
+    }
     .fetch_one(pool)
     .await;
 
@@ -175,14 +177,12 @@ async fn add_record(
             r.messages.ids.push(msg.id);
             r.count += 1;
 
-            sqlx::query_as!(
+            sqlx::query_as! {
                 models::Record,
                 "update records set messages = ?, count = ?
                 where id = ? and done = false",
-                r.messages,
-                r.count,
-                id
-            )
+                r.messages, r.count, id
+            }
             .execute(pool)
             .await?;
         }
@@ -190,11 +190,10 @@ async fn add_record(
 
     bot.send_message(
         msg.chat.id,
-        format!(
-            "added message {} to record {}\\n
-            use /end_record to finish",
-            msg.id, id
-        ),
+        formatdoc! {"
+            added <Message {} /> to <Record {} />
+            use /end_record to finish", msg.id, id
+        },
     )
     .await?;
     Ok(())
@@ -216,13 +215,11 @@ async fn new_record(
         messages: models::Messages { cid: msg.chat.id, ids: Vec::new() },
     };
 
-    let result = sqlx::query_as!(
+    let result = sqlx::query_as! {
         Record,
         "insert into records (slug, created_at, messages) values(?, ?, ?)",
-        record.slug,
-        record.created_at,
-        record.messages
-    )
+        record.slug, record.created_at, record.messages
+    }
     .execute(pool)
     .await?;
 
@@ -230,7 +227,10 @@ async fn new_record(
 
     bot.send_message(
         msg.chat.id,
-        format!("send your messages\nyour record id is: {}", id),
+        formatdoc! {"
+            send your messages
+            your record id is: {}", id
+        },
     )
     .await?;
 
