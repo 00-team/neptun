@@ -99,8 +99,14 @@ async fn handle_commands(
     bot: Bot, dlg: Dialogue, pool: &SqlitePool, msg: Message, cmd: Command,
 ) -> HR {
     match cmd {
-        Command::Start(x) => {
-            log::info!("x: {} \nmsg: {:#?}", x, msg);
+        Command::Start(arg) => {
+            if arg.starts_with("record-") {
+                if let Some(sid) = arg.split("-").nth(1) {
+                    if let Ok(rid) = sid.parse::<i64>() {
+                        return get_record(bot, pool, rid, msg).await;
+                    }
+                }
+            }
             bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.").await?;
         }
         Command::Help => {
