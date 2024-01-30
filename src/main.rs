@@ -32,7 +32,7 @@ pub enum State {
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "snake_case")]
 pub enum Command {
-    Start,
+    Start(String),
     Help,
     /// make a new record
     NewRecord,
@@ -99,8 +99,8 @@ async fn handle_commands(
     bot: Bot, dlg: Dialogue, pool: &SqlitePool, msg: Message, cmd: Command,
 ) -> HR {
     match cmd {
-        Command::Start => {
-            log::info!("msg: {:#?}", msg);
+        Command::Start(x) => {
+            log::info!("x: {} \nmsg: {:#?}", x, msg);
             bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.").await?;
         }
         Command::Help => {
