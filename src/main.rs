@@ -36,6 +36,7 @@ pub enum Command {
     Help,
     /// make a new record
     NewRecord,
+    /// get a record by id
     GetRecord {
         id: i64,
     },
@@ -99,6 +100,7 @@ async fn handle_commands(
 ) -> HR {
     match cmd {
         Command::Start => {
+            log::info!("msg: {:#?}", msg);
             bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.").await?;
         }
         Command::Help => {
@@ -145,7 +147,11 @@ async fn get_record(bot: Bot, pool: &SqlitePool, id: i64, msg: Message) -> HR {
         Ok(r) => {
             for mid in r.messages.ids {
                 let mut x = bot.copy_message(msg.chat.id, r.messages.cid, mid);
-                x.caption = Some("new caption".to_owned());
+
+                let mut cap = x.caption.clone().unwrap_or(String::new());
+                cap.push_str("\nsome ad? 🥗");
+                x.caption = Some(cap);
+
                 x.send().await?;
                 // bot.forward_message(msg.chat.id, r.messages.cid, mid).await?;
             }
