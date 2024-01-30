@@ -1,3 +1,4 @@
+use indoc::formatdoc;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sqlx::SqlitePool;
@@ -190,7 +191,7 @@ async fn add_record(
     bot.send_message(
         msg.chat.id,
         format!(
-            "added message {} to record {}
+            "added message {} to record {}\\n
             use /end_record to finish",
             msg.id, id
         ),
@@ -257,13 +258,14 @@ async fn record_commands(
         Ok(r) => {
             bot.send_message(
                 msg.chat.id,
-                format!(
-                    "total messages: {}
+                formatdoc! {"
+                    total messages: {}
                     id: {}
                     get the record like `/get_record {}`",
                     r.count, r.id, r.id
-                ),
-            ).parse_mode(MarkdownV2)
+                },
+            )
+            .parse_mode(MarkdownV2)
             .await?;
         }
     }

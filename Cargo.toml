@@ -4,6 +4,7 @@ version = "0.1.5"
 edition = "2021"
 
 [dependencies]
+indoc = "2"
 rand = "0"
 anyhow = "1"
 log = "0.4"
