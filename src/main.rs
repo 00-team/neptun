@@ -42,6 +42,8 @@ pub enum Command {
     GetRecord {
         id: i64,
     },
+    /// list of all records
+    ListRecord,
 }
 
 #[derive(BotCommands, Clone)]
@@ -104,11 +106,12 @@ async fn handle_commands(
         Command::Start(arg) => {
             let arg = parse_start_args(&arg);
             match arg {
-                StartArg::Record {id, slug: _} => {
+                StartArg::Record { id, slug: _ } => {
                     get_record(bot, pool, id, msg).await?;
-                },
+                }
                 StartArg::None => {
-                    bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.").await?;
+                    bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.")
+                        .await?;
                 }
             }
         }
@@ -118,6 +121,7 @@ async fn handle_commands(
         }
         Command::NewRecord => new_record(bot, dlg, pool, msg).await?,
         Command::GetRecord { id } => get_record(bot, pool, id, msg).await?,
+        Command::ListRecord => list_record(bot, pool, msg).await?,
     }
 
     Ok(())
@@ -163,6 +167,25 @@ async fn menu(bot: Bot, _dlg: Dialogue, msg: Message) -> HR {
     )
     .await?;
     // dialogue.update(AddRecordState::Add).await?;
+
+    Ok(())
+}
+
+async fn list_record(bot: Bot, pool: &SqlitePool, msg: Message) -> HR {
+    let result = sqlx::query_as! {
+        models::Record,
+        "select * from records where done = true"
+    }
+    .fetch_all(pool)
+    .await?;
+
+    let sstr = result
+        .iter()
+        .map(|r| format!("<Record {} {} />", r.id, r.count))
+        .fold(String::new(), |a, b| a + &b + "\t")
+        .trim_end().to_owned();
+
+    bot.send_message(msg.chat.id, sstr).await?;
 
     Ok(())
 }
@@ -259,6 +282,10 @@ async fn new_record(
         done: false,
         messages: models::Messages { cid: msg.chat.id, ids: Vec::new() },
     };
+
+    sqlx::query("delete from records where done = true and count = 0")
+        .execute(pool)
+        .await?;
 
     let result = sqlx::query_as! {
         Record,
