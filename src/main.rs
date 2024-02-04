@@ -1,6 +1,7 @@
 use indoc::{formatdoc, indoc};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use reqwest;
 use sqlx::SqlitePool;
 use std::env;
 use std::error::Error;
@@ -11,6 +12,7 @@ use teloxide::dispatching::dialogue::{ErasedStorage, SqliteStorage, Storage};
 use teloxide::dispatching::{HandlerExt, UpdateFilterExt};
 use teloxide::prelude::*;
 use teloxide::types::ParseMode::MarkdownV2;
+use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use teloxide::utils::command::BotCommands;
 
 mod config;
@@ -100,14 +102,15 @@ async fn handle_commands(
 ) -> HR {
     match cmd {
         Command::Start(arg) => {
-            if arg.starts_with("record-") {
-                if let Some(sid) = arg.split("-").nth(1) {
-                    if let Ok(rid) = sid.parse::<i64>() {
-                        return get_record(bot, pool, rid, msg).await;
-                    }
+            let arg = parse_start_args(&arg);
+            match arg {
+                StartArg::Record {id, slug: _} => {
+                    get_record(bot, pool, id, msg).await?;
+                },
+                StartArg::None => {
+                    bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.").await?;
                 }
             }
-            bot.send_message(msg.chat.id, "Welcome to the Neptun Bot.").await?;
         }
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
@@ -118,6 +121,43 @@ async fn handle_commands(
     }
 
     Ok(())
+}
+
+enum StartArg {
+    Record { id: i64, slug: String },
+    None,
+}
+
+fn parse_start_args(arg: &str) -> StartArg {
+    let mut value = arg.split("-");
+    match value.nth(0) {
+        None => StartArg::None,
+        Some(key) => match key {
+            "record" => {
+                if let Some(id) = value.nth(1) {
+                    if let Ok(id) = id.parse::<i64>() {
+                        if let Some(slug) = value.nth(2) {
+                            return StartArg::Record {
+                                id,
+                                slug: slug.to_owned(),
+                            };
+                        }
+                    }
+                }
+
+                StartArg::None
+            }
+            _ => StartArg::None,
+        },
+    }
+
+    // if arg.starts_with("record-") {
+    //                 if let Some(sid) = arg.split("-").nth(1) {
+    //                     if let Ok(rid) = sid.parse::<i64>() {
+    //                         return get_record(bot, pool, rid, msg).await;
+    //                     }
+    //                 }
+    //             }
 }
 
 async fn menu(bot: Bot, _dlg: Dialogue, msg: Message) -> HR {
@@ -268,6 +308,15 @@ async fn record_commands(
             bot.send_message(msg.chat.id, "record was not found!").await?;
         }
         Ok(r) => {
+            let url = reqwest::Url::parse(&format!(
+                "tg://@{}?start=record-{}-{}",
+                config().bot_username,
+                r.id,
+                r.slug
+            ))?;
+            let keyboard: Vec<Vec<InlineKeyboardButton>> =
+                vec![vec![InlineKeyboardButton::url("Get Record", url)]];
+
             bot.send_message(
                 msg.chat.id,
                 formatdoc! {"
@@ -278,6 +327,7 @@ async fn record_commands(
                 },
             )
             .parse_mode(MarkdownV2)
+            .reply_markup(InlineKeyboardMarkup::new(keyboard))
             .await?;
         }
     }

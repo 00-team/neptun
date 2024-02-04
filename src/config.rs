@@ -1,3 +1,4 @@
+use core::panic;
 use std::{env, sync::OnceLock};
 
 use teloxide::types::UserId;
@@ -6,6 +7,7 @@ use teloxide::types::UserId;
 pub struct Config {
     pub dev: UserId,
     pub admins: Vec<UserId>,
+    pub bot_username: String
 }
 
 pub fn config() -> &'static Config {
@@ -23,6 +25,11 @@ pub fn config() -> &'static Config {
                 .unwrap();
         admins.push(dev);
 
-        Config { dev, admins }
+        let bot_username = env::var("TELOXIDE_BOT_USERNAME").unwrap();
+        if bot_username.starts_with("@") {
+            panic!("bot_username must NOT start with @");
+        }
+
+        Config { dev, admins, bot_username }
     })
 }
