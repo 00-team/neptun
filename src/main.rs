@@ -139,11 +139,11 @@ fn parse_start_args(arg: &str) -> StartArg {
         Some(key) => match key {
             "record" => {
                 log::info!("key: {:?}", key);
-                if let Some(id) = value.nth(1) {
+                if let Some(id) = value.nth(0) {
                     log::info!("id: {:?}", id);
                     if let Ok(id) = id.parse::<i64>() {
                         log::info!("id: {:?}", id);
-                        if let Some(slug) = value.nth(2) {
+                        if let Some(slug) = value.nth(0) {
                             log::info!("slug: {:?}", slug);
                             return StartArg::Record {
                                 id,
