@@ -133,13 +133,18 @@ enum StartArg {
 
 fn parse_start_args(arg: &str) -> StartArg {
     let mut value = arg.split("-");
+    log::info!("value: {:?}", value);
     match value.nth(0) {
         None => StartArg::None,
         Some(key) => match key {
             "record" => {
+                log::info!("key: {:?}", key);
                 if let Some(id) = value.nth(1) {
+                    log::info!("id: {:?}", id);
                     if let Ok(id) = id.parse::<i64>() {
+                        log::info!("id: {:?}", id);
                         if let Some(slug) = value.nth(2) {
+                            log::info!("slug: {:?}", slug);
                             return StartArg::Record {
                                 id,
                                 slug: slug.to_owned(),
