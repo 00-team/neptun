@@ -102,7 +102,9 @@ async fn handle_commands(
 ) -> HR {
     match cmd {
         Command::Start(arg) => {
+            log::info!("arg: {}", arg);
             let arg = parse_start_args(&arg);
+            log::info!("arg: {:?}", arg);
             match arg {
                 StartArg::Record {id, slug: _} => {
                     get_record(bot, pool, id, msg).await?;
@@ -123,6 +125,7 @@ async fn handle_commands(
     Ok(())
 }
 
+#[derive(Debug)]
 enum StartArg {
     Record { id: i64, slug: String },
     None,
@@ -150,14 +153,6 @@ fn parse_start_args(arg: &str) -> StartArg {
             _ => StartArg::None,
         },
     }
-
-    // if arg.starts_with("record-") {
-    //                 if let Some(sid) = arg.split("-").nth(1) {
-    //                     if let Ok(rid) = sid.parse::<i64>() {
-    //                         return get_record(bot, pool, rid, msg).await;
-    //                     }
-    //                 }
-    //             }
 }
 
 async fn menu(bot: Bot, _dlg: Dialogue, msg: Message) -> HR {
@@ -309,7 +304,7 @@ async fn record_commands(
         }
         Ok(r) => {
             let url = reqwest::Url::parse(&format!(
-                "tg://@{}?start=record-{}-{}",
+                "https://t.me/{}?start=record-{}-{}",
                 config().bot_username,
                 r.id,
                 r.slug
